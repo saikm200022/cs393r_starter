@@ -83,6 +83,8 @@ void Navigation::UpdateLocation(const Eigen::Vector2f& loc, float angle) {
   robot_angle_ = angle;
 }
 
+
+
 void Navigation::UpdateOdometry(const Vector2f& loc,
                                 float angle,
                                 const Vector2f& vel,
@@ -122,8 +124,12 @@ void Navigation::Run() {
   // The latest observed point cloud is accessible via "point_cloud_"
 
   // Eventually, you will have to set the control values to issue drive commands:
-  // drive_msg_.curvature = ...;
-  // drive_msg_.velocity = ...;
+  drive_msg_.curvature = 0;
+  drive_msg_.velocity = 1.0;
+
+  for (auto point : point_cloud_) {
+    visualization::DrawPoint(point,0x4287f5,local_viz_msg_);
+  }
 
   // Add timestamps to all messages.
   local_viz_msg_.header.stamp = ros::Time::now();
@@ -134,5 +140,37 @@ void Navigation::Run() {
   viz_pub_.publish(global_viz_msg_);
   drive_pub_.publish(drive_msg_);
 }
+
+// float Navigation::GetMaxDistance(float theta, Vector2f point) { 
+//   float radius = width / tan(theta));
+//   Vector2f CoT(0,radius);
+
+//   float max_radius = sqrt(pow((radius+width)/2.0,2) + pow(length - (length - wheelbase)/2.0, 2));
+//   float min_radius = radius - width/2.0;
+
+//   float point_radius = abs(point - CoT);
+
+//   if (point_radius >= min_radius && point_radius <= max_radius) {
+//     // Collision with this point
+//     float inner_corner_radius = sqrt(pow(min_radius,2) + pow(length - (length - wheelbase)/2.0,2));
+//     Vector2f collision_point;
+//     if (point_radius >= min_radius && point_radius <= inner_corner_radius) {
+//       // collision with side
+//       collision_point[1] = width/2.0;
+//       collision_point[0] = sqrt(pow(point_radius,2) - pow(min_radius,2));
+
+//     } else {
+//       // collision with front
+//       collision_point[1] = sqrt(pow(point_radius,2)- pow(length - (length - wheelbase)/2),2) - radius;
+//       collision_point[0] = length - (length - wheelbase)/2
+//     }
+
+//     float collision_angle = 2 * asin(abs(point - collision_point) / (2 * point_radius));
+//     float max_distance = point_radius * collision_angle;
+//     return max_distance;
+
+//   }
+}
+
 
 }  // namespace navigation
