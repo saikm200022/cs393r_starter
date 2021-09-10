@@ -67,6 +67,21 @@ class Navigation {
 
  private:
 
+  float GetMaxDistance(float theta, Eigen::Vector2f point);
+
+  bool PointCollidesWithArc(float theta, Eigen::Vector2f point);
+
+  const double LENGTH = 0.5;
+  const double WIDTH = 0.25;
+  const double WHEELBASE = 0.35;
+  const double TRACK = 0.25;
+  const double SAFETY_MARGIN = 0.25;
+
+  const double MAX_VELOCITY = 4.0;
+  const double MAX_ACCEL = 2.0;
+  const double MAX_DECEL = 2.0;
+  
+  
   // Whether odometry has been initialized.
   bool odom_initialized_;
   // Whether localization has been initialized.

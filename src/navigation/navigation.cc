@@ -141,35 +141,72 @@ void Navigation::Run() {
   drive_pub_.publish(drive_msg_);
 }
 
-// float Navigation::GetMaxDistance(float theta, Vector2f point) { 
-//   float radius = width / tan(theta));
-//   Vector2f CoT(0,radius);
+// float Navigation::Simple1DTOC(Vector2f point)
+// {
+//   float distance_constraint = v_max / max_d;
+//   float_distance_left  = abs(point)
+//   if (robot_vel_ < v_max && distance_left)
+//     return robot_vel_ + max_a;
+  
+//   else if (robot_vel_ == v_max && distance_left)
+//     return robot_vel;
+  
+//   return robot_vel - max_d;
+// }
 
-//   float max_radius = sqrt(pow((radius+width)/2.0,2) + pow(length - (length - wheelbase)/2.0, 2));
-//   float min_radius = radius - width/2.0;
+bool Navigation::PointCollidesWithArc(float theta, Eigen::Vector2f point) {
+  double width = WIDTH + SAFETY_MARGIN;
+  double length = LENGTH + SAFETY_MARGIN;
+  double wheelbase = WHEELBASE;
 
-//   float point_radius = abs(point - CoT);
+  double radius = width / tan(theta);
+  Vector2f CoT(0,radius);
 
-//   if (point_radius >= min_radius && point_radius <= max_radius) {
-//     // Collision with this point
-//     float inner_corner_radius = sqrt(pow(min_radius,2) + pow(length - (length - wheelbase)/2.0,2));
-//     Vector2f collision_point;
-//     if (point_radius >= min_radius && point_radius <= inner_corner_radius) {
-//       // collision with side
-//       collision_point[1] = width/2.0;
-//       collision_point[0] = sqrt(pow(point_radius,2) - pow(min_radius,2));
+  double max_radius = sqrt(pow((radius+width)/2.0,2) + pow(length - (length - wheelbase)/2.0, 2));
+  double min_radius = radius - width/2.0;
 
-//     } else {
-//       // collision with front
-//       collision_point[1] = sqrt(pow(point_radius,2)- pow(length - (length - wheelbase)/2),2) - radius;
-//       collision_point[0] = length - (length - wheelbase)/2
-//     }
+  auto point_dis = point - CoT;
+  double point_radius = abs(point_dis.norm());
 
-//     float collision_angle = 2 * asin(abs(point - collision_point) / (2 * point_radius));
-//     float max_distance = point_radius * collision_angle;
-//     return max_distance;
+  return (point_radius >= min_radius && point_radius <= max_radius);
+}
 
-//   }
+// Assumes collision is already checked
+float Navigation::GetMaxDistance(float theta, Eigen::Vector2f point) { 
+  double width = WIDTH + SAFETY_MARGIN;
+  double length = LENGTH + SAFETY_MARGIN;
+  double wheelbase = WHEELBASE;
+
+  double radius = width / tan(theta);
+  Vector2f CoT(0,radius);
+
+  double max_radius = sqrt(pow((radius+width)/2.0,2) + pow(length - (length - wheelbase)/2.0, 2));
+  double min_radius = radius - width/2.0;
+
+  auto point_dis = point - CoT;
+  double point_radius = abs(point_dis.norm());
+
+  if (point_radius >= min_radius && point_radius <= max_radius) {
+    // Collision with this point
+    double inner_corner_radius = sqrt(pow(min_radius,2) + pow(length - (length - wheelbase)/2.0,2));
+    Vector2f collision_point;
+    if (point_radius >= min_radius && point_radius <= inner_corner_radius) {
+      // collision with side
+      collision_point[1] = width/2.0;
+      collision_point[0] = sqrt(pow(point_radius,2) - pow(min_radius,2));
+
+    } else {
+      // collision with front
+      collision_point[1] = sqrt(pow(point_radius,2) - pow(length - (length - wheelbase)/2,2)) - radius;
+      collision_point[0] = length - (length - wheelbase)/2;
+    }
+
+    double collision_angle = 2 * asin(abs((point - collision_point).norm()) / (2 * point_radius));
+    double max_distance = point_radius * collision_angle;
+    return max_distance;
+
+  }
+  return -1;
 }
 
 
