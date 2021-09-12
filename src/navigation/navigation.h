@@ -22,6 +22,7 @@
 #include <vector>
 
 #include "eigen3/Eigen/Dense"
+#include <math.h>
 
 #ifndef NAVIGATION_H
 #define NAVIGATION_H
@@ -67,20 +68,43 @@ class Navigation {
 
  private:
 
-  float GetMaxDistance(float theta, Eigen::Vector2f point);
+  double GetMaxDistance(double theta, Eigen::Vector2f point);
 
-  bool PointCollidesWithArc(float theta, Eigen::Vector2f point);
+  bool PointCollidesWithArc(double theta, Eigen::Vector2f point);
 
-  const double LENGTH = 0.5;
-  const double WIDTH = 0.25;
-  const double WHEELBASE = 0.35;
-  const double TRACK = 0.25;
+  bool PointCollidesStraight(Eigen::Vector2f point);
+
+  double GetMaxDistanceStraight(Eigen::Vector2f point);
+
+  void DrawCar();
+
+  Eigen::Vector2f GlobalToRobot(Eigen::Vector2f point);
+
+
+  // REAL CAR CONSTANTS
+  // const double LENGTH = 0.5;
+  // const double WIDTH = 0.25;
+  // const double WHEELBASE = 0.35;
+  // const double TRACK = 0.25;
+  // const double SAFETY_MARGIN = 0.25;
+
+  // SIMULATOR CONSTANTS
+  const double LENGTH = 0.535;
+  const double WIDTH = 0.281;
+  const double WHEELBASE = 0.535;
+  const double TRACK = 0.281;
   const double SAFETY_MARGIN = 0.25;
 
   const double MAX_VELOCITY = 4.0;
   const double MAX_ACCEL = 2.0;
   const double MAX_DECEL = 2.0;
+
+  const double GOAL = 5.0;
   
+  int iteration = 0;
+
+  Eigen::Vector2f obstacle; 
+
   
   // Whether odometry has been initialized.
   bool odom_initialized_;
