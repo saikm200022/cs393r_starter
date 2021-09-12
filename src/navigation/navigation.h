@@ -79,6 +79,7 @@ class Navigation {
   bool PointCollidesStraight(Eigen::Vector2f point);
 
   double GetMaxDistanceStraight(Eigen::Vector2f point);
+  float Simple1DTOC(Eigen::Vector2f point);
 
   void DrawCar();
 
