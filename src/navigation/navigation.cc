@@ -108,7 +108,7 @@ void Navigation::ObservePointCloud(const vector<Vector2f>& cloud,
 
 float dist = 10.0;
 
-float Navigation::Simple1DTOC(Vector2f point)
+float Navigation::Simple1DTOC(Eigen::Vector2f point)
 {
   float v_max = 1.0;
   float max_a = 0.4;
@@ -148,11 +148,14 @@ void Navigation::Run() {
   
   // Clear previous visualizations.
   if (iteration == 0) {
+    obstacle = Eigen::Vector2f(-19.0, 10.0);
 
-    obstacle = Eigen::Vector2f(2.0,2.0) + robot_loc_;
+
   }
-    visualization::ClearVisualizationMsg(local_viz_msg_);
     visualization::ClearVisualizationMsg(global_viz_msg_);
+    visualization::ClearVisualizationMsg(local_viz_msg_);
+
+
 
 
   // If odometry has not been initialized, we can't do anything.
@@ -162,12 +165,16 @@ void Navigation::Run() {
   // Feel free to make helper functions to structure the control appropriately.
   
   // The latest observed point cloud is accessible via "point_cloud_"
-  visualization::DrawPoint(Vector2f(dist, 0),0x4287f5,local_viz_msg_);
+  // visualization::DrawPoint(Vector2f(dist, 0),0x4287f5,local_viz_msg_);
+  // visualization::DrawCross(obstacle,0.5, 0xaa00aa,global_viz_msg_);
 
   // Eventually, you will have to set the control values to issue drive commands:
   drive_msg_.curvature = 0;
   drive_msg_.velocity = Simple1DTOC(Vector2f(dist, 0));
   dist -= drive_msg_.velocity * 1/20;
+
+  // drive_msg_.curvature = - M_PI / 6;
+  // drive_msg_.velocity = 1.0;
 
   // for (auto point : point_cloud_) {
   //   visualization::DrawPoint(point,0x4287f5,local_viz_msg_);
@@ -178,8 +185,9 @@ void Navigation::Run() {
   // visualization::DrawCross(obstacle, 0.1, 0x0000ff,global_viz_msg_);
 
   
-  PointCollidesWithArc(M_PI / 6, GlobalToRobot(obstacle));
-  printf("Collides with point: %lf\n", GetMaxDistance(M_PI / 6, GlobalToRobot(obstacle)));
+  // GlobalToRobot(obstacle);
+  // PointCollidesWithArc(-M_PI / 6, GlobalToRobot(obstacle));
+  // printf("Collides with point: %lf\n", GetMaxDistance(-M_PI / 6, GlobalToRobot(obstacle)));
   // PointCollidesWithArc(M_PI / 6, Eigen::Vector2f(2.0,2.0));
 
   // Add timestamps to all messages.
@@ -230,21 +238,21 @@ bool Navigation::PointCollidesWithArc(double theta, Eigen::Vector2f point) {
   auto point_dis = point - CoT;
   double point_radius = abs(point_dis.norm());
 
-  visualization::DrawCross(point, 0.1, 0xaa00aa,local_viz_msg_);
+  // visualization::DrawCross(point, 0.5, 0xff0000,local_viz_msg_);
 
 
-  if (iteration == 0) {
-    printf("Radius: %lf\n", radius);
-    printf("Min Radius: %lf\n", min_radius);
-    printf("Max Radius: %lf\n", max_radius);
+  // if (iteration == 0) {
+  //   printf("Radius: %lf\n", radius);
+  //   printf("Min Radius: %lf\n", min_radius);
+  //   printf("Max Radius: %lf\n", max_radius);
 
-    visualization::DrawCross(CoT + robot_loc_, 0.1, 0x0000ff,global_viz_msg_);
-    visualization::DrawLine(Eigen::Vector2f(0,0) + robot_loc_,CoT + robot_loc_,0xff0000,global_viz_msg_);
-    visualization::DrawCross(point + robot_loc_, 0.1, 0x0000ff,global_viz_msg_);
-    visualization::DrawArc(CoT+robot_loc_,min_radius,-M_PI / 2,M_PI / 2,0xff0000,global_viz_msg_);
-    visualization::DrawArc(CoT+robot_loc_,max_radius,-M_PI / 2,M_PI / 2,0x00ff00,global_viz_msg_);
-    DrawCar();
-  }
+  //   visualization::DrawCross(CoT + robot_loc_, 0.1, 0x0000ff,global_viz_msg_);
+  //   visualization::DrawLine(Eigen::Vector2f(0,0) + robot_loc_,CoT + robot_loc_,0xff0000,global_viz_msg_);
+  //   // visualization::DrawCross(point + robot_loc_, 0.1, 0x0000ff,global_viz_msg_);
+  //   visualization::DrawArc(CoT+robot_loc_,min_radius,-M_PI / 2,M_PI / 2,0xff0000,global_viz_msg_);
+  //   visualization::DrawArc(CoT+robot_loc_,max_radius,-M_PI / 2,M_PI / 2,0x00ff00,global_viz_msg_);
+  //   DrawCar();
+  // }
 
   return (point_radius >= min_radius && point_radius <= max_radius);
 }
@@ -284,12 +292,13 @@ double Navigation::GetMaxDistance(double theta, Eigen::Vector2f point) {
       collision_point[0] = length - (length - wheelbase)/2;
     }
 
-//     float collision_angle = 2 * asin(abs(point - collision_point) / (2 * point_radius));
-//     float max_distance = point_radius * collision_angle;
-//     return max_distance;
+    double collision_angle = 2 * asin(abs((point - collision_point).norm()) / (2 * point_radius));
+    double max_distance = point_radius * collision_angle;
+    return max_distance;
 
-//   }
-// }
+  }
+  return -1;
+}
 
 void Navigation::DrawCar() {
   double l = LENGTH + SAFETY_MARGIN;
@@ -298,15 +307,15 @@ void Navigation::DrawCar() {
 
   Eigen::Vector2f bbox_min (0 - (l - wb)/2, -w / 2.0);
   Eigen::Vector2f bbox_max ((wb + (l - wb)/2), w / 2);
-  visualization::DrawLine(bbox_min+robot_loc_, Eigen::Vector2f(bbox_min(0),bbox_max(1))+robot_loc_,0x000000,global_viz_msg_);
-  visualization::DrawLine(bbox_min+robot_loc_, Eigen::Vector2f(bbox_max(0),bbox_min(1))+robot_loc_,0x000000,global_viz_msg_);
-  visualization::DrawLine(bbox_max+robot_loc_, Eigen::Vector2f(bbox_min(0),bbox_max(1))+robot_loc_,0x000000,global_viz_msg_);
-  visualization::DrawLine(bbox_max+robot_loc_, Eigen::Vector2f(bbox_max(0),bbox_min(1))+robot_loc_,0x000000,global_viz_msg_);
+  visualization::DrawLine(bbox_min, Eigen::Vector2f(bbox_min(0),bbox_max(1)),0x000000,local_viz_msg_);
+  visualization::DrawLine(bbox_min, Eigen::Vector2f(bbox_max(0),bbox_min(1)),0x000000,local_viz_msg_);
+  visualization::DrawLine(bbox_max, Eigen::Vector2f(bbox_min(0),bbox_max(1)),0x000000,local_viz_msg_);
+  visualization::DrawLine(bbox_max, Eigen::Vector2f(bbox_max(0),bbox_min(1)),0x000000,local_viz_msg_);
 }
 
 Eigen::Vector2f Navigation::GlobalToRobot(Eigen::Vector2f point) {
-  point = new Eigen::Vector2f(0,1);
-  printf("Robot location: %f %f\n", robot_loc_(0), robot_loc_(1));
+
+  // printf("Robot location: %f %f\n", robot_loc_(0), robot_loc_(1));
 
   float angle = -robot_angle_;
   Eigen::Matrix2f rot;
@@ -315,10 +324,11 @@ Eigen::Vector2f Navigation::GlobalToRobot(Eigen::Vector2f point) {
   rot(1,0) = sin(angle);
   rot(1,1) = cos(angle);
 
-  auto translated_point = rot * point - robot_loc_;
+  auto translated_point = rot * (point - robot_loc_);
 
   visualization::DrawCross(translated_point, 0.5, 0x0000ff,local_viz_msg_);
 
+  return translated_point;
 
 }
 
