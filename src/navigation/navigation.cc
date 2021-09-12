@@ -106,42 +106,99 @@ void Navigation::ObservePointCloud(const vector<Vector2f>& cloud,
   point_cloud_ = cloud;                                     
 }
 
-float dist = 10.0;
 
-float Navigation::Simple1DTOC(Eigen::Vector2f point)
+// float Navigation::Simple1DTOC(Vector2f point)
+// {
+//   float x3 = pow(MAX_VELOCITY,2) / MAX_DECEL;
+//   Vector2f base_link;
+//   base_link[0] = 0;
+//   base_link[1] = 0;
+//   float distance_left  = abs((point - base_link).norm());
+
+//   // accelerate towards vmax
+//   if (robot_vel_[0] < MAX_VELOCITY && distance_left >= x3)
+//   {
+//     printf("a\n");
+//     float new_v = robot_vel_[0] + MAX_ACCEL * 1/20;
+//     return std::min(new_v, MAX_VELOCITY);
+//   }
+  
+//   // Cruise
+//   if (robot_vel_[0] == MAX_VELOCITY && distance_left >= x3) 
+//   {
+//     printf("\tc\n");
+//     return MAX_VELOCITY;
+//   }
+
+//   printf("\t\td\n");
+  
+//   // Stop
+//   float new_v = robot_vel_[0] - MAX_DECEL * 1/20;
+//   float zero = 0.0;
+//   return std::max(new_v, zero);
+// }
+
+float Navigation::getTravellableDistance(float curvature)
 {
-  float v_max = 1.0;
-  float max_a = 0.4;
-  float max_d = 0.4;
-  float x3 = pow(v_max,2) / max_d;
-  Vector2f base_link;
-  base_link[0] = 0;
-  base_link[1] = 0;
-  float distance_left  = abs((point - base_link).norm());
+  float res = INF;
+  // Calculate the steering angle from curvature
+  float steering_angle = atan(WHEELBASE * curvature);
+  for (auto point : point_cloud_)
+  {
+    float distance = GetMaxDistance(steering_angle, point);
+    res = std::min(distance, res);
+  }
+  return res;
+}
+
+float* Navigation::getBestCurvature(){
+  float curvature = -1.0;
+  float delta_c = 0.1;
+  float best_curvature = 0.0;
+  float max_dist = 0.0;
+
+  while (curvature <= 1.0)
+  {
+    float distance = getTravellableDistance(curvature);
+    if (distance > max_dist)
+    {
+      max_dist = distance;
+      best_curvature = curvature;
+    }
+    curvature += delta_c;
+  }
+  return new float[2] {best_curvature, max_dist};
+}
+
+float* Navigation::Simple1DTOC()
+{
+  float* action = getBestCurvature();
+  float curvature = action[0];
+  float dist = action[1];
+  float x3 = pow(MAX_VELOCITY,2) / MAX_DECEL;
 
   // accelerate towards vmax
-  if (robot_vel_[0] < v_max && distance_left > x3)
+  if (robot_vel_[0] < MAX_VELOCITY && dist >= x3)
   {
     printf("a\n");
-    float new_v = robot_vel_[0] + max_a * 1/20;
-    return std::min(new_v, v_max);
+    float new_v = robot_vel_[0] + MAX_ACCEL * 1/20;
+    return new float[2] {curvature, new_v};  
   }
   
   // Cruise
-  if (robot_vel_[0] == v_max && distance_left > x3) 
+  if (robot_vel_[0] == MAX_VELOCITY && dist >= x3) 
   {
     printf("\tc\n");
-    return v_max;
+    return new float[2] {curvature, MAX_VELOCITY};
   }
 
   printf("\t\td\n");
   
   // Stop
-  float new_v = robot_vel_[0] - max_d * 1/20;
+  float new_v = robot_vel_[0] - MAX_DECEL * 1/20;
   float zero = 0.0;
-  return std::max(new_v, zero);
+  return new float[2] {curvature, std::max(new_v, zero)};
 }
-
 
 void Navigation::Run() {
   // This function gets called 20 times a second to form the control loop.
@@ -162,37 +219,19 @@ void Navigation::Run() {
   // Feel free to make helper functions to structure the control appropriately.
   
   // The latest observed point cloud is accessible via "point_cloud_"
-  // visualization::DrawPoint(Vector2f(dist, 0),0x4287f5,local_viz_msg_);
-  visualization::DrawCross(obstacle,0.5, 0xaa00aa,global_viz_msg_);
 
   // Eventually, you will have to set the control values to issue drive commands:
-  // drive_msg_.curvature = 0;
-  // drive_msg_.velocity = Simple1DTOC(Vector2f(dist, 0));
-  drive_msg_.curvature = -(M_PI / 6);
-  drive_msg_.velocity = 0.2;
-
-  dist -= drive_msg_.velocity * 1/20;
-
-  if (VISUALIZE) {
+  float* res = Simple1DTOC();
+  drive_msg_.curvature = res[0];
+  drive_msg_.velocity = res[1];
+  
+    if (VISUALIZE) {
     DrawCar();
   }
-
-  // drive_msg_.curvature = - M_PI / 6;
-  // drive_msg_.velocity = 1.0;
-
+  
   // for (auto point : point_cloud_) {
   //   visualization::DrawPoint(point,0x4287f5,local_viz_msg_);
   // }
-
-  // printf("Iteration: %d\n", iteration);
-
-  // visualization::DrawCross(obstacle, 0.1, 0x0000ff,global_viz_msg_);
-
-  
-  // GlobalToRobot(obstacle);
-  // PointCollidesWithArc(-M_PI / 6, GlobalToRobot(obstacle));
-  printf("Collides with point: %lf\n", GetMaxDistance(-(M_PI / 6), GlobalToRobot(obstacle)));
-  // PointCollidesWithArc(M_PI / 6, Eigen::Vector2f(2.0,2.0));
 
   // Add timestamps to all messages.
   local_viz_msg_.header.stamp = ros::Time::now();
@@ -217,10 +256,9 @@ double Navigation::GetMaxDistanceStraight(Eigen::Vector2f point) {
     return (wb + (l - wb)/2) - point(0); 
   }
 
-  return -1;
+  return INF;
 }
 
-// Assumes collision is already checked
 double Navigation::GetMaxDistance(double theta, Eigen::Vector2f point) { 
   if (theta == 0) {
     return GetMaxDistanceStraight(point);
@@ -251,12 +289,10 @@ double Navigation::GetMaxDistance(double theta, Eigen::Vector2f point) {
     Vector2f collision_point;
     if (point_radius >= min_radius && point_radius <= inner_corner_radius) {
       // collision with side
-      printf("Collides with front\n");
       collision_point[1] = width/2.0;
       collision_point[0] = sqrt(pow(point_radius,2) - pow(min_radius,2));
     } else {
       // collision with front
-      printf("Collides with side\n");
       collision_point[1] = sqrt(pow(point_radius,2) - pow(length - (length - wheelbase)/2,2)) - radius;
       collision_point[0] = length - (length - wheelbase)/2;
     }
@@ -271,7 +307,7 @@ double Navigation::GetMaxDistance(double theta, Eigen::Vector2f point) {
       return max_distance;
     }
   }
-  return -1;
+  return INF;
 }
 
 void Navigation::DrawCar() {

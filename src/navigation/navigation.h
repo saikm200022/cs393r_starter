@@ -68,6 +68,10 @@ class Navigation {
 
  private:
 
+  float* Simple1DTOC();
+  float* getBestCurvature();
+  float getTravellableDistance(float curvature);
+
   double GetMaxDistance(double theta, Eigen::Vector2f point);
 
   bool PointCollidesWithArc(double theta, Eigen::Vector2f point);
@@ -96,9 +100,12 @@ class Navigation {
   const double TRACK = 0.281;
   const double SAFETY_MARGIN = 0.25;
 
-  const double MAX_VELOCITY = 4.0;
-  const double MAX_ACCEL = 2.0;
-  const double MAX_DECEL = 2.0;
+  const float MAX_VELOCITY = 1.0;
+  const float MAX_ACCEL = 0.4;
+  const float MAX_DECEL = 0.4;
+
+  const float INF = std::numeric_limits<float>::max();
+
 
   const double GOAL = 5.0;
 
