@@ -101,6 +101,8 @@ class Navigation {
   const double MAX_DECEL = 2.0;
 
   const double GOAL = 5.0;
+
+  bool VISUALIZE = 1;
   
   int iteration = 0;
 
