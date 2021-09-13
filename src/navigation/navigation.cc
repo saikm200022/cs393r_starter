@@ -297,9 +297,8 @@ float Navigation::GetMaxDistanceStraight(Eigen::Vector2f point) {
 
   return INF;
 }
-
 float Navigation::GetMaxDistance(struct PathOption& option, Eigen::Vector2f point) { 
-  float theta = option.curvature;
+  float theta = option.theta;
 
   if (fEquals(theta, 0.0)) {
     return GetMaxDistanceStraight(point);
@@ -328,35 +327,104 @@ float Navigation::GetMaxDistance(struct PathOption& option, Eigen::Vector2f poin
   float max_radius = sqrt(pow(radius+width/2.0,2) + pow(length - (length - wheelbase)/2.0, 2));
   float min_radius = radius - width/2.0;
   
-  auto point_dis = point - CoT;
-  float point_radius = abs(point_dis.norm());
+  auto point_vec = point - CoT;
+  float point_radius = abs(point_vec.norm());
 
   if (point_radius >= min_radius && point_radius <= max_radius) {
-    // Collision with this point
+    auto down_vec = Eigen::Vector2f(0, -radius);
+    float ab = GetAngleBetweenVectors(down_vec, point_vec);
+
     float inner_corner_radius = sqrt(pow(min_radius,2) + pow(length - (length - wheelbase)/2.0,2));
-    Vector2f collision_point;
+    float beta = 0;
     if (point_radius >= min_radius && point_radius <= inner_corner_radius) {
       // collision with side
-      collision_point[1] = width/2.0;
-      collision_point[0] = sqrt(pow(point_radius,2) - pow(min_radius,2));
+      float y = radius - width/2;
+      beta = acos(y / point_radius);
+
     } else {
       // collision with front
-      collision_point[1] = sqrt(pow(point_radius,2) - pow(length - (length - wheelbase)/2,2)) - radius;
-      collision_point[0] = length - (length - wheelbase)/2;
+      float x = length - ((length - wheelbase)/2.0);
+      beta = asin(x / point_radius);
     }
 
-    // float distance = (point - collision_point).norm();
-    auto v1 = CoT - collision_point;
-    auto v2 = CoT - point;
-    float signed_angle = atan2(v2(1),v2(0)) - atan2(v1(1),v1(0));
-    if (signed_angle > 0) {
-      // float collision_angle = 2 * asin((point - collision_point).norm() / (2 * point_radius));
-      float max_distance = point_radius * signed_angle;
-      return max_distance;
-    } 
+    float alpha = ab - beta;
+    return radius * alpha;
   }
-  return INF;
+
+  return M_PI*2 * radius;
 }
+
+float Navigation::GetAngleBetweenVectors (Eigen::Vector2f a, Eigen::Vector2f b) {
+  return acos(a.dot(b) / (a.norm() * b.norm()));
+}
+
+
+// float Navigation::GetMaxDistance2(struct PathOption& option, Eigen::Vector2f point) { 
+//   float theta = option.theta;
+
+//   if (fEquals(theta, 0.0)) {
+//     return GetMaxDistanceStraight(point);
+//   }
+
+//   // just flip calculation if theta is to the right
+//   if (theta < 0) {
+//     theta = -theta;
+//     point(1) = -point(1);
+//   }
+
+//   float width = WIDTH + SAFETY_MARGIN;
+//   float length = LENGTH + SAFETY_MARGIN;
+//   float wheelbase = WHEELBASE;
+
+//   float radius = wheelbase / tan(theta/2);
+//   Vector2f CoT(0,radius);
+
+//   if(option.theta < 0) {
+//     option.CoT = Eigen::Vector2f(0, -radius);
+//   } else {
+//     option.CoT = CoT;
+//   }
+//   option.radius = radius;
+
+//   float max_radius = sqrt(pow(radius+width/2.0,2) + pow(length - (length - wheelbase)/2.0, 2));
+//   float min_radius = radius - width/2.0;
+  
+//   auto point_dis = point - CoT;
+//   float point_radius = abs(point_dis.norm());
+
+//   if (point_radius >= min_radius && point_radius <= max_radius) {
+//     // Collision with this point
+//     float inner_corner_radius = sqrt(pow(min_radius,2) + pow(length - (length - wheelbase)/2.0,2));
+//     Vector2f collision_point;
+//     if (point_radius >= min_radius && point_radius <= inner_corner_radius) {
+//       // collision with side
+//       // printf("Collision with side\n");
+//       collision_point[1] = width/2.0;
+//       collision_point[0] = sqrt(pow(point_radius,2) - pow(min_radius,2));
+//     } else {
+//       // collision with front
+//       // printf("Collision with front\n");
+//       collision_point[1] = sqrt(pow(point_radius,2) - pow(length - (length - wheelbase)/2,2)) - radius;
+//       collision_point[0] = length - (length - wheelbase)/2;
+//     }
+
+//     // float distance = (point - collision_point).norm();
+//     // auto v1 = CoT - collision_point;
+//     // auto v2 = CoT - point;
+//     // float signed_angle = atan2(v2(1),v2(0)) - atan2(v1(1),v1(0));
+//     // if (signed_angle > 0) {
+//       float collision_angle = 2 * asin((point - collision_point).norm() / (2 * point_radius));
+//       float max_distance = point_radius * collision_angle;
+//       return max_distance;
+//     // }
+//     // else {
+//     //   float collision_angle = 2 * asin((point - collision_point).norm() / (2 * point_radius));
+//     //   float max_distance = point_radius * collision_angle;
+//     //   return (M_PI * radius * 2) - max_distance;
+//     // }
+//   }
+//   return M_PI * radius;
+// }
 
 void Navigation::DrawCar() {
   float l = LENGTH + SAFETY_MARGIN;
@@ -373,7 +441,7 @@ void Navigation::DrawCar() {
 
 void Navigation::DrawArcs(float curvature, float dist) {
   if (fEquals(curvature, 0.0)) {
-    visualization::DrawLine(Eigen::Vector2f(0,0), Eigen::Vector2f(dist,0), 0xff0000, local_viz_msg_);
+    visualization::DrawLine(Eigen::Vector2f(CAR_FRONT,0), Eigen::Vector2f(dist+CAR_FRONT,0), 0xff0000, local_viz_msg_);
     return;
   }
   if (curvature > 0) {

@@ -77,6 +77,8 @@ class Navigation {
   float getTravellableDistance(struct PathOption& option);
 
   float GetMaxDistance(struct PathOption& option, Eigen::Vector2f point);
+  float GetMaxDistance2(struct PathOption& option, Eigen::Vector2f point);
+
 
   // bool PointCollidesWithArc(float theta, Eigen::Vector2f point);
 
@@ -85,6 +87,7 @@ class Navigation {
   float GetMaxDistanceStraight(Eigen::Vector2f point);
   float Simple1DTOC(Eigen::Vector2f point);
   float getDistanceToGoal(struct PathOption& option);
+  float GetAngleBetweenVectors (Eigen::Vector2f a, Eigen::Vector2f b);
 
 
   void DrawCar();
@@ -107,6 +110,8 @@ class Navigation {
   const float WHEELBASE = 0.535;
   const float TRACK = 0.281;
   const float SAFETY_MARGIN = 0.25;
+
+  float CAR_FRONT = WHEELBASE + (LENGTH+SAFETY_MARGIN - WHEELBASE)/2;
 
   const float MAX_VELOCITY = 1.0;
   const float MAX_ACCEL = 0.4;

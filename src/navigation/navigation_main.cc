@@ -93,10 +93,12 @@ void LaserCallback(const sensor_msgs::LaserScan& msg) {
     Vector2f point;
 
     float range = msg.ranges[range_index];
-    point[0] = range * cos(angle);
-    point[1] = range * sin(angle);
+    // if (range < msg.range_max) {
+      point[0] = range * cos(angle);
+      point[1] = range * sin(angle);
 
-    point_cloud_.push_back(point);
+      point_cloud_.push_back(point);
+    // }
     angle += msg.angle_increment;
     range_index += 1;
   }
