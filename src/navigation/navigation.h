@@ -88,7 +88,7 @@ class Navigation {
 
 
   void DrawCar();
-  void DrawArcs(double theta);
+  void DrawArcs(double theta, double dist);
 
 
   Eigen::Vector2f GlobalToRobot(Eigen::Vector2f point);

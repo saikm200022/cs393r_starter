@@ -52,6 +52,10 @@ AckermannCurvatureDriveMsg drive_msg_;
 const float kEpsilon = 1e-5;
 } //namespace
 
+bool fEquals (float a, float b) {
+  return (a >= b - kEpsilon && a <= b + kEpsilon);
+}
+
 namespace navigation {
 
 Navigation::Navigation(const string& map_file, ros::NodeHandle* n) :
@@ -171,7 +175,7 @@ float* Navigation::getBestCurvature() {
       max_dist = option.free_path_length;
       best_curvature = curvature;
     } else {
-      if (option.free_path_length >= max_dist - kEpsilon && option.free_path_length <= max_dist + kEpsilon) {
+      if (fEquals(option.free_path_length, max_dist)) {
        if (abs(best_curvature) > abs(curvature)) {
          // Favor curvatures close to straight
          best_curvature = curvature;
@@ -190,6 +194,12 @@ float* Navigation::Simple1DTOC()
   float* action = getBestCurvature();
   float curvature = action[0];
   float dist = action[1];
+
+  if (VISUALIZE) {
+    DrawCar();
+    DrawArcs(curvature, dist);
+  }
+
   float x3 = pow(MAX_VELOCITY,2) / MAX_DECEL;
 
   // accelerate towards vmax
@@ -239,10 +249,6 @@ void Navigation::Run() {
   drive_msg_.curvature = res[0];
   drive_msg_.velocity = res[1];
   
-  if (VISUALIZE) {
-    DrawCar();
-    DrawArcs(res[0]);
-  }
   
   // for (auto point : point_cloud_) {
   //   visualization::DrawPoint(point,0x4287f5,local_viz_msg_);
@@ -283,7 +289,7 @@ double Navigation::GetMaxDistanceStraight(Eigen::Vector2f point) {
 double Navigation::GetMaxDistance(struct PathOption& option, Eigen::Vector2f point) { 
   float theta = option.theta;
 
-  if (theta <= 0 + kEpsilon && theta >= 0 - kEpsilon) {
+  if (fEquals(theta, 0.0)) {
     return GetMaxDistanceStraight(point);
   }
 
@@ -353,9 +359,9 @@ void Navigation::DrawCar() {
   visualization::DrawLine(bbox_max, Eigen::Vector2f(bbox_max(0),bbox_min(1)),0x000000,local_viz_msg_);
 }
 
-void Navigation::DrawArcs(double curvature) {
-  if (curvature >= 0 - kEpsilon && curvature <= 0 + kEpsilon) {
-    visualization::DrawLine(Eigen::Vector2f(0,0), Eigen::Vector2f(4,0), 0xff0000, local_viz_msg_);
+void Navigation::DrawArcs(double curvature, double dist) {
+  if (fEquals(curvature, 0.0)) {
+    visualization::DrawLine(Eigen::Vector2f(0,0), Eigen::Vector2f(dist,0), 0xff0000, local_viz_msg_);
     return;
   }
   if (curvature > 0) {
@@ -363,14 +369,20 @@ void Navigation::DrawArcs(double curvature) {
     // float theta = curvature;
     double radius = WHEELBASE / tan(theta/2);
     Vector2f CoT(0,radius);
-    visualization::DrawArc(CoT, radius, -M_PI / 2, 0, 0xff0000, local_viz_msg_);
+    // visualization::DrawArc(CoT, radius, -M_PI / 2, 0, 0xff0000, local_viz_msg_);
+    visualization::DrawArc(CoT, radius, -M_PI / 2, -M_PI / 2 + (dist/radius), 0xff0000, local_viz_msg_);
+
 
   } else {
       float theta = atan(WHEELBASE * -curvature);
       // float theta = -curvature;
       double radius = WHEELBASE / tan(theta/2);
       Vector2f CoT(0,-radius);
-      visualization::DrawArc(CoT, radius, 0, M_PI / 2, 0xff0000, local_viz_msg_);
+      // visualization::DrawArc(CoT, radius, -(dist/radius), 0, 0xff0000, local_viz_msg_);
+      // visualization::DrawArc(CoT, radius, 0, (dist/radius), 0xff0000, local_viz_msg_);
+      visualization::DrawArc(CoT, radius, (M_PI / 2) - (dist/radius), M_PI / 2, 0xff0000, local_viz_msg_);
+
+      
   }
 }
 
