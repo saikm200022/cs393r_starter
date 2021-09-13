@@ -85,6 +85,7 @@ void LaserCallback(const sensor_msgs::LaserScan& msg) {
   const Vector2f kLaserLoc(0.2, 0);
 
   static vector<Vector2f> point_cloud_;
+  point_cloud_.clear();
 
   float angle = msg.angle_min;
   int range_index = 0;

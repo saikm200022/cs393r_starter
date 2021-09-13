@@ -63,7 +63,7 @@ class Navigation {
 
   // Updates based on an observed laser scan
   void ObservePointCloud(const std::vector<Eigen::Vector2f>& cloud,
-                         double time);
+                         float time);
 
   // Main function called continously from main
   void Run();
@@ -76,37 +76,37 @@ class Navigation {
   float* getBestCurvature();
   float getTravellableDistance(struct PathOption& option);
 
-  double GetMaxDistance(struct PathOption& option, Eigen::Vector2f point);
+  float GetMaxDistance(struct PathOption& option, Eigen::Vector2f point);
 
-  // bool PointCollidesWithArc(double theta, Eigen::Vector2f point);
+  // bool PointCollidesWithArc(float theta, Eigen::Vector2f point);
 
   // bool PointCollidesStraight(Eigen::Vector2f point);
 
-  double GetMaxDistanceStraight(Eigen::Vector2f point);
+  float GetMaxDistanceStraight(Eigen::Vector2f point);
   float Simple1DTOC(Eigen::Vector2f point);
   float getDistanceToGoal(struct PathOption& option);
 
 
   void DrawCar();
-  void DrawArcs(double theta, double dist);
+  void DrawArcs(float theta, float dist);
 
 
   Eigen::Vector2f GlobalToRobot(Eigen::Vector2f point);
 
 
   // REAL CAR CONSTANTS
-  // const double LENGTH = 0.5;
-  // const double WIDTH = 0.25;
-  // const double WHEELBASE = 0.35;
-  // const double TRACK = 0.25;
-  // const double SAFETY_MARGIN = 0.25;
+  // const float LENGTH = 0.5;
+  // const float WIDTH = 0.25;
+  // const float WHEELBASE = 0.35;
+  // const float TRACK = 0.25;
+  // const float SAFETY_MARGIN = 0.25;
 
   // SIMULATOR CONSTANTS
-  const double LENGTH = 0.535;
-  const double WIDTH = 0.281;
-  const double WHEELBASE = 0.535;
-  const double TRACK = 0.281;
-  const double SAFETY_MARGIN = 0.25;
+  const float LENGTH = 0.535;
+  const float WIDTH = 0.281;
+  const float WHEELBASE = 0.535;
+  const float TRACK = 0.281;
+  const float SAFETY_MARGIN = 0.25;
 
   const float MAX_VELOCITY = 1.0;
   const float MAX_ACCEL = 0.4;
@@ -115,7 +115,7 @@ class Navigation {
   const float INF = std::numeric_limits<float>::max();
 
 
-  // const double GOAL = 5.0;
+  // const float GOAL = 5.0;
   Eigen::Vector2f GOAL = Eigen::Vector2f(5, 0);
 
   bool VISUALIZE = 1;

@@ -106,7 +106,7 @@ void Navigation::UpdateOdometry(const Vector2f& loc,
 }
 
 void Navigation::ObservePointCloud(const vector<Vector2f>& cloud,
-                                   double time) {
+                                   float time) {
   point_cloud_ = cloud;                                     
 }
 
@@ -146,6 +146,7 @@ float Navigation::getTravellableDistance(struct PathOption& option)
 {
   float curvature = option.curvature;
   float res = INF;
+  // printf("Curve: %f\n", curvature);
   // Calculate the steering angle from curvature
   option.theta = atan(WHEELBASE * curvature);
   for (auto point : point_cloud_)
@@ -153,18 +154,20 @@ float Navigation::getTravellableDistance(struct PathOption& option)
     float distance = GetMaxDistance(option, point);
     res = std::min(distance, res);
   }
+
+  // printf("Best distance: %f\n", res);
+
   return res;
 }
 
 float* Navigation::getBestCurvature() {
   float curvature = -1.0;
-  float delta_c = 0.1;
+  float delta_c = 0.5;
   float best_curvature = 0.0;
   float max_dist = 0.0;
 
   while (curvature <= 1.0)
   {
-
     struct PathOption option;
     option.curvature = curvature;
 
@@ -195,12 +198,14 @@ float* Navigation::Simple1DTOC()
   float curvature = action[0];
   float dist = action[1];
 
+  // printf("DISTANCE: %f\n", dist);
+
   if (VISUALIZE) {
     DrawCar();
     DrawArcs(curvature, dist);
   }
 
-  float x3 = pow(MAX_VELOCITY,2) / MAX_DECEL;
+  float x3 = pow(robot_vel_[0],2) / MAX_DECEL;
 
   // accelerate towards vmax
   if (robot_vel_[0] < MAX_VELOCITY && dist >= x3)
@@ -234,7 +239,6 @@ void Navigation::Run() {
   }
 
     visualization::ClearVisualizationMsg(global_viz_msg_);
-    visualization::ClearVisualizationMsg(local_viz_msg_);
 
   // If odometry has not been initialized, we can't do anything.
   if (!odom_initialized_) return;
@@ -245,14 +249,21 @@ void Navigation::Run() {
   // The latest observed point cloud is accessible via "point_cloud_"
 
   // Eventually, you will have to set the control values to issue drive commands:
-  float* res = Simple1DTOC();
-  drive_msg_.curvature = res[0];
-  drive_msg_.velocity = res[1];
-  
-  
-  // for (auto point : point_cloud_) {
-  //   visualization::DrawPoint(point,0x4287f5,local_viz_msg_);
+  // if (iteration % 100 == 0) {
+    visualization::ClearVisualizationMsg(local_viz_msg_);
+    float* res = Simple1DTOC();
+    drive_msg_.curvature = res[0];
+    drive_msg_.velocity = res[1];
+  // } else {
+  //       drive_msg_.curvature = 0;
+  //   drive_msg_.velocity = 0;
   // }
+  
+  // int size = point_cloud_.size();
+  // printf("Cloud size: %d\n", size);
+  for (auto point : point_cloud_) {
+    visualization::DrawPoint(point,0x4287f5,local_viz_msg_);
+  }
 
   // Add timestamps to all messages.
   local_viz_msg_.header.stamp = ros::Time::now();
@@ -265,29 +276,30 @@ void Navigation::Run() {
   iteration++;
 }
 
-double Navigation::GetMaxDistanceStraight(Eigen::Vector2f point) {
+float Navigation::GetMaxDistanceStraight(Eigen::Vector2f point) {
   // printf("in straight");
 
-  double l = LENGTH + SAFETY_MARGIN;
-  double w = WIDTH + SAFETY_MARGIN;
-  double wb = WHEELBASE;
+  float l = LENGTH + SAFETY_MARGIN;
+  float w = WIDTH + SAFETY_MARGIN;
+  float wb = WHEELBASE;
 
-  double car_front = wb + (l - wb)/2;
+  float car_front = wb + (l - wb)/2;
 
   Eigen::Vector2f bbox_min (car_front, -w / 2.0);
-  Eigen::Vector2f bbox_max (5, w/2);
+  Eigen::Vector2f bbox_max (INF, w/2);
 
   if (point(0) >= bbox_min(0) && point(0) <= bbox_max(0) && point(1) >= bbox_min(1) && point(1) <= bbox_max(1)) { 
-    double distance = point(0) - car_front;
-    // printf("max distance straight: %lf\n", distance);
+    float distance = point(0) - car_front;
+    // printf("max distance straight: %f\n", distance);
     return distance; 
   }
+  // printf("max distance straight: %f\n", INF);
 
-  return 5;
+  return INF;
 }
 
-double Navigation::GetMaxDistance(struct PathOption& option, Eigen::Vector2f point) { 
-  float theta = option.theta;
+float Navigation::GetMaxDistance(struct PathOption& option, Eigen::Vector2f point) { 
+  float theta = option.curvature;
 
   if (fEquals(theta, 0.0)) {
     return GetMaxDistanceStraight(point);
@@ -299,11 +311,11 @@ double Navigation::GetMaxDistance(struct PathOption& option, Eigen::Vector2f poi
     point(1) = -point(1);
   }
 
-  double width = WIDTH + SAFETY_MARGIN;
-  double length = LENGTH + SAFETY_MARGIN;
-  double wheelbase = WHEELBASE;
+  float width = WIDTH + SAFETY_MARGIN;
+  float length = LENGTH + SAFETY_MARGIN;
+  float wheelbase = WHEELBASE;
 
-  double radius = wheelbase / tan(theta/2);
+  float radius = wheelbase / tan(theta/2);
   Vector2f CoT(0,radius);
 
   if(option.theta < 0) {
@@ -313,15 +325,15 @@ double Navigation::GetMaxDistance(struct PathOption& option, Eigen::Vector2f poi
   }
   option.radius = radius;
 
-  double max_radius = sqrt(pow(radius+width/2.0,2) + pow(length - (length - wheelbase)/2.0, 2));
-  double min_radius = radius - width/2.0;
+  float max_radius = sqrt(pow(radius+width/2.0,2) + pow(length - (length - wheelbase)/2.0, 2));
+  float min_radius = radius - width/2.0;
   
   auto point_dis = point - CoT;
-  double point_radius = abs(point_dis.norm());
+  float point_radius = abs(point_dis.norm());
 
   if (point_radius >= min_radius && point_radius <= max_radius) {
     // Collision with this point
-    double inner_corner_radius = sqrt(pow(min_radius,2) + pow(length - (length - wheelbase)/2.0,2));
+    float inner_corner_radius = sqrt(pow(min_radius,2) + pow(length - (length - wheelbase)/2.0,2));
     Vector2f collision_point;
     if (point_radius >= min_radius && point_radius <= inner_corner_radius) {
       // collision with side
@@ -333,23 +345,23 @@ double Navigation::GetMaxDistance(struct PathOption& option, Eigen::Vector2f poi
       collision_point[0] = length - (length - wheelbase)/2;
     }
 
-    // double distance = (point - collision_point).norm();
+    // float distance = (point - collision_point).norm();
     auto v1 = CoT - collision_point;
     auto v2 = CoT - point;
-    double signed_angle = atan2(v2(1),v2(0)) - atan2(v1(1),v1(0));
-    if (signed_angle > 0 && signed_angle <= M_PI) {
-      double collision_angle = 2 * asin((point - collision_point).norm() / (2 * point_radius));
-      double max_distance = point_radius * collision_angle;
+    float signed_angle = atan2(v2(1),v2(0)) - atan2(v1(1),v1(0));
+    if (signed_angle > 0) {
+      // float collision_angle = 2 * asin((point - collision_point).norm() / (2 * point_radius));
+      float max_distance = point_radius * signed_angle;
       return max_distance;
-    }
+    } 
   }
-  return 5;
+  return INF;
 }
 
 void Navigation::DrawCar() {
-  double l = LENGTH + SAFETY_MARGIN;
-  double w = WIDTH + SAFETY_MARGIN;
-  double wb = WHEELBASE;
+  float l = LENGTH + SAFETY_MARGIN;
+  float w = WIDTH + SAFETY_MARGIN;
+  float wb = WHEELBASE;
 
   Eigen::Vector2f bbox_min (0 - (l - wb)/2, -w / 2.0);
   Eigen::Vector2f bbox_max ((wb + (l - wb)/2), w / 2);
@@ -359,7 +371,7 @@ void Navigation::DrawCar() {
   visualization::DrawLine(bbox_max, Eigen::Vector2f(bbox_max(0),bbox_min(1)),0x000000,local_viz_msg_);
 }
 
-void Navigation::DrawArcs(double curvature, double dist) {
+void Navigation::DrawArcs(float curvature, float dist) {
   if (fEquals(curvature, 0.0)) {
     visualization::DrawLine(Eigen::Vector2f(0,0), Eigen::Vector2f(dist,0), 0xff0000, local_viz_msg_);
     return;
@@ -367,7 +379,7 @@ void Navigation::DrawArcs(double curvature, double dist) {
   if (curvature > 0) {
     float theta = atan(WHEELBASE * curvature);
     // float theta = curvature;
-    double radius = WHEELBASE / tan(theta/2);
+    float radius = WHEELBASE / tan(theta/2);
     Vector2f CoT(0,radius);
     // visualization::DrawArc(CoT, radius, -M_PI / 2, 0, 0xff0000, local_viz_msg_);
     visualization::DrawArc(CoT, radius, -M_PI / 2, -M_PI / 2 + (dist/radius), 0xff0000, local_viz_msg_);
@@ -376,13 +388,11 @@ void Navigation::DrawArcs(double curvature, double dist) {
   } else {
       float theta = atan(WHEELBASE * -curvature);
       // float theta = -curvature;
-      double radius = WHEELBASE / tan(theta/2);
+      float radius = WHEELBASE / tan(theta/2);
       Vector2f CoT(0,-radius);
       // visualization::DrawArc(CoT, radius, -(dist/radius), 0, 0xff0000, local_viz_msg_);
       // visualization::DrawArc(CoT, radius, 0, (dist/radius), 0xff0000, local_viz_msg_);
       visualization::DrawArc(CoT, radius, (M_PI / 2) - (dist/radius), M_PI / 2, 0xff0000, local_viz_msg_);
-
-      
   }
 }
 
