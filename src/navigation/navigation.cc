@@ -152,11 +152,10 @@ float Navigation::getTravellableDistance(struct PathOption& option)
   return res;
 }
 
-float* Navigation::getBestCurvature(){
+float* Navigation::getBestCurvature() {
   float curvature = -1.0;
   float delta_c = 0.1;
   float best_curvature = 0.0;
-  float closest_goal = INF;
   float max_dist = 0.0;
 
   while (curvature <= 1.0)
@@ -167,18 +166,16 @@ float* Navigation::getBestCurvature(){
 
     // printf("Curvature: %f\n", curvature);
     option.free_path_length = getTravellableDistance(option);
-    option.distance_to_goal = getDistanceToGoal(option);
     if (option.free_path_length > max_dist)
     {
       max_dist = option.free_path_length;
       best_curvature = curvature;
     } else {
-      if  (option.free_path_length >= max_dist - kEpsilon && option.free_path_length <= max_dist + kEpsilon) {
-        if (closest_goal > option.distance_to_goal) {
-          // printf("Closest goal");
-          best_curvature = curvature;
-          closest_goal = option.distance_to_goal;
-        }
+      if (option.free_path_length >= max_dist - kEpsilon && option.free_path_length <= max_dist + kEpsilon) {
+       if (abs(best_curvature) > abs(curvature)) {
+         // Favor curvatures close to straight
+         best_curvature = curvature;
+       }
       }
     }
     curvature += delta_c;
@@ -186,20 +183,6 @@ float* Navigation::getBestCurvature(){
   // printf("Max distance: %f\n", max_dist);
 
   return new float[2] {best_curvature, max_dist};
-}
-
-float Navigation::getDistanceToGoal(struct PathOption& option) {
-  Eigen::Vector2f goal_vec = GOAL - option.CoT;
-  Eigen::Vector2f now_vec = -option.CoT;
-  
-
-  float angle = acos (goal_vec.dot(now_vec) / goal_vec.norm() * option.radius);
-  if (angle >= -1.0 && angle <= 1.0) {
-    return goal_vec.norm() - option.radius;
-  }
-
-  return 50;
-
 }
 
 float* Navigation::Simple1DTOC()
@@ -348,7 +331,7 @@ double Navigation::GetMaxDistance(struct PathOption& option, Eigen::Vector2f poi
     auto v1 = CoT - collision_point;
     auto v2 = CoT - point;
     double signed_angle = atan2(v2(1),v2(0)) - atan2(v1(1),v1(0));
-    if (signed_angle > 0) {
+    if (signed_angle > 0 && signed_angle <= M_PI) {
       double collision_angle = 2 * asin((point - collision_point).norm() / (2 * point_radius));
       double max_distance = point_radius * collision_angle;
       return max_distance;
