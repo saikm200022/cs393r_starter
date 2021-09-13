@@ -35,8 +35,12 @@ namespace navigation {
 
 struct PathOption {
   float curvature;
+  float theta;
   float clearance;
+  float radius;
+  Eigen::Vector2f CoT;
   float free_path_length;
+  float distance_to_goal;
   Eigen::Vector2f obstruction;
   Eigen::Vector2f closest_point;
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
@@ -70,18 +74,22 @@ class Navigation {
 
   float* Simple1DTOC();
   float* getBestCurvature();
-  float getTravellableDistance(float curvature);
+  float getTravellableDistance(struct PathOption& option);
 
-  double GetMaxDistance(double theta, Eigen::Vector2f point);
+  double GetMaxDistance(struct PathOption& option, Eigen::Vector2f point);
 
-  bool PointCollidesWithArc(double theta, Eigen::Vector2f point);
+  // bool PointCollidesWithArc(double theta, Eigen::Vector2f point);
 
-  bool PointCollidesStraight(Eigen::Vector2f point);
+  // bool PointCollidesStraight(Eigen::Vector2f point);
 
   double GetMaxDistanceStraight(Eigen::Vector2f point);
   float Simple1DTOC(Eigen::Vector2f point);
+  float getDistanceToGoal(struct PathOption& option);
+
 
   void DrawCar();
+  void DrawArcs(double theta);
+
 
   Eigen::Vector2f GlobalToRobot(Eigen::Vector2f point);
 
@@ -107,7 +115,8 @@ class Navigation {
   const float INF = std::numeric_limits<float>::max();
 
 
-  const double GOAL = 5.0;
+  // const double GOAL = 5.0;
+  Eigen::Vector2f GOAL = Eigen::Vector2f(5, 0);
 
   bool VISUALIZE = 1;
   
