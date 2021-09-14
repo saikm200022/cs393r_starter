@@ -112,7 +112,7 @@ class Navigation {
   const float WIDTH = 0.281;
   const float WHEELBASE = 0.535;
   const float TRACK = 0.281;
-  const float SAFETY_MARGIN = 0.25;
+  const float SAFETY_MARGIN = 0.05;
 
   float CAR_FRONT = WHEELBASE + (LENGTH+SAFETY_MARGIN - WHEELBASE)/2;
 
