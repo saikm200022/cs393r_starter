@@ -155,14 +155,12 @@ float Navigation::getTravellableDistance(struct PathOption& option)
     res = std::min(distance, res);
   }
 
-  // printf("Best distance: %f\n", res);
-
-  return res;
+    return res;
 }
 
 float* Navigation::getBestCurvature() {
   float curvature = -1.0;
-  float delta_c = 0.01;
+  float delta_c = 0.1;
   float best_curvature = 0.0;
   float max_dist = 0.0;
 
@@ -207,12 +205,14 @@ float* Navigation::Simple1DTOC()
 
   float x3 = pow(robot_vel_[0],2) / MAX_DECEL;
 
+  // printf("Curvature %f\tDist %f\tx3 %f\t\n", curvature, dist, x3);
+
   // accelerate towards vmax
   if (robot_vel_[0] < MAX_VELOCITY && dist >= x3)
   {
     // printf("a\n");
     float new_v = robot_vel_[0] + MAX_ACCEL * 1/20;
-    return new float[2] {curvature, new_v};  
+    return new float[2] {curvature, std::max(float(0.2), new_v)};  
   }
   
   // Cruise
@@ -279,13 +279,13 @@ void Navigation::Run() {
 float Navigation::GetMaxDistanceStraight(Eigen::Vector2f point) {
   // printf("in straight");
 
-  float l = LENGTH + SAFETY_MARGIN;
-  float w = WIDTH + SAFETY_MARGIN;
+  float l = LENGTH + SAFETY_MARGIN * 2;
+  float w = WIDTH + SAFETY_MARGIN * 2;
   float wb = WHEELBASE;
 
   float car_front = wb + (l - wb)/2;
 
-  Eigen::Vector2f bbox_min (car_front, -w / 2.0);
+  Eigen::Vector2f bbox_min (0, -w / 2.0);
   Eigen::Vector2f bbox_max (INF, w/2);
 
   if (point(0) >= bbox_min(0) && point(0) <= bbox_max(0) && point(1) >= bbox_min(1) && point(1) <= bbox_max(1)) { 
