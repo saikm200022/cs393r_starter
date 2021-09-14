@@ -162,7 +162,7 @@ float Navigation::getTravellableDistance(struct PathOption& option)
 
 float* Navigation::getBestCurvature() {
   float curvature = -1.0;
-  float delta_c = 0.5;
+  float delta_c = 0.01;
   float best_curvature = 0.0;
   float max_dist = 0.0;
 
@@ -310,8 +310,8 @@ float Navigation::GetMaxDistance(struct PathOption& option, Eigen::Vector2f poin
     point(1) = -point(1);
   }
 
-  float width = WIDTH + SAFETY_MARGIN;
-  float length = LENGTH + SAFETY_MARGIN;
+  float width = WIDTH + SAFETY_MARGIN * 2;
+  float length = LENGTH + SAFETY_MARGIN * 2;
   float wheelbase = WHEELBASE;
 
   float radius = wheelbase / tan(theta/2);
@@ -351,7 +351,7 @@ float Navigation::GetMaxDistance(struct PathOption& option, Eigen::Vector2f poin
     return radius * alpha;
   }
 
-  return M_PI*2 * radius;
+  return M_PI*2 * radius / 4;
 }
 
 float Navigation::GetAngleBetweenVectors (Eigen::Vector2f a, Eigen::Vector2f b) {
