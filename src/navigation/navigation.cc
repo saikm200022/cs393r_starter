@@ -110,38 +110,6 @@ void Navigation::ObservePointCloud(const vector<Vector2f>& cloud,
   point_cloud_ = cloud;                                     
 }
 
-
-// float Navigation::Simple1DTOC(Vector2f point)
-// {
-//   float x3 = pow(MAX_VELOCITY,2) / MAX_DECEL;
-//   Vector2f base_link;
-//   base_link[0] = 0;
-//   base_link[1] = 0;
-//   float distance_left  = abs((point - base_link).norm());
-
-//   // accelerate towards vmax
-//   if (robot_vel_[0] < MAX_VELOCITY && distance_left >= x3)
-//   {
-//     printf("a\n");
-//     float new_v = robot_vel_[0] + MAX_ACCEL * 1/20;
-//     return std::min(new_v, MAX_VELOCITY);
-//   }
-  
-//   // Cruise
-//   if (robot_vel_[0] == MAX_VELOCITY && distance_left >= x3) 
-//   {
-//     printf("\tc\n");
-//     return MAX_VELOCITY;
-//   }
-
-//   printf("\t\td\n");
-  
-//   // Stop
-//   float new_v = robot_vel_[0] - MAX_DECEL * 1/20;
-//   float zero = 0.0;
-//   return std::max(new_v, zero);
-// }
-
 float Navigation::getTravellableDistance(struct PathOption& option)
 {
   float curvature = option.curvature;
@@ -274,6 +242,54 @@ void Navigation::Run() {
   viz_pub_.publish(global_viz_msg_);
   drive_pub_.publish(drive_msg_);
   iteration++;
+}
+
+void Navigation::GetClearance (struct PathOption& option) {
+  float width = WIDTH + SAFETY_MARGIN;
+  float length = LENGTH + SAFETY_MARGIN;
+  float wheelbase = WHEELBASE;
+
+  float radius = option.radius;
+  Vector2f CoT(0,radius);
+
+  float max_radius = sqrt(pow(radius+width/2.0,2) + pow(length - (length - wheelbase)/2.0, 2));
+  float min_radius = radius - width/2.0;
+
+  float min_clearance = INF;
+
+  for (auto point : point_cloud_) {
+    Eigen::Vector2f point_vector = point - CoT;
+    float point_radius = point_vector.norm();
+
+    if (point_radius >= min_radius && point_radius <= max_radius) {
+      // collides - we don't care about this one
+      continue;
+    }
+
+    // See if point is at a reasonable angle
+    Eigen::Vector2f car_vector (0, -radius);
+    float point_angle = GetAngleBetweenVectors(car_vector, point_vector);
+    float distance_angle = option.free_path_length / radius;
+
+    if (point_angle < distance_angle) {
+
+      // point is close to arc that is travelled
+      min_clearance = std::min(min_clearance, std::min(abs(point_radius - min_radius), abs(point_radius - max_radius)));
+    } 
+    else {
+      // printf("Clearance set to outward\n");
+      // point is outside, look at endpoints instead
+      // Eigen::Vector2f distance_point = 2 * radius * sin(distance_angle/2);
+      // Eigen::Vector2f distance_vector = (distance_point - CoT).normalized();
+
+      // Eigen::Vector2f min_endpoint = distance_point - (distance_vector * (radius - min_radius));
+      // Eigen::Vector2f max_endpoint = distance_point + (distance_vector * (max_radius - radius));
+
+      // float min_clearance = std::min(min_clearance, std::min((min_endpoint - point).norm(), (max_endpoint - point).norm()));
+    }
+  }
+
+  option.clearance = min_clearance;
 }
 
 float Navigation::GetMaxDistanceStraight(Eigen::Vector2f point) {

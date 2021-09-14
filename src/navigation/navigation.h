@@ -89,6 +89,9 @@ class Navigation {
   float getDistanceToGoal(struct PathOption& option);
   float GetAngleBetweenVectors (Eigen::Vector2f a, Eigen::Vector2f b);
 
+  void GetClearance (struct PathOption& option);
+
+
 
   void DrawCar();
   void DrawArcs(float theta, float dist);
@@ -126,6 +129,7 @@ class Navigation {
   bool VISUALIZE = 1;
   
   int iteration = 0;
+  int scratch = 0;
 
   Eigen::Vector2f obstacle; 
 
