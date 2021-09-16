@@ -39,10 +39,12 @@ struct PathOption {
   float clearance;
   float radius;
   Eigen::Vector2f CoT;
+  float angle_travelled;
   float free_path_length;
   float distance_to_goal;
   Eigen::Vector2f obstruction;
   Eigen::Vector2f closest_point;
+  float score;
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
 };
 
@@ -70,6 +72,9 @@ class Navigation {
   // Used to set the next target pose.
   void SetNavGoal(const Eigen::Vector2f& loc, float angle);
 
+  void TrimDistanceToGoal (struct PathOption& option);
+
+
  private:
 
   float* Simple1DTOC();
@@ -88,6 +93,7 @@ class Navigation {
   float Simple1DTOC(Eigen::Vector2f point);
   float getDistanceToGoal(struct PathOption& option);
   float GetAngleBetweenVectors (Eigen::Vector2f a, Eigen::Vector2f b);
+  void scorePath(struct PathOption& option);
 
   void GetClearance (struct PathOption& option);
 
@@ -114,7 +120,12 @@ class Navigation {
   const float TRACK = 0.281;
   const float SAFETY_MARGIN = 0.05;
 
-  float CAR_FRONT = WHEELBASE + (LENGTH+SAFETY_MARGIN - WHEELBASE)/2;
+  float CAR_FRONT = WHEELBASE + (LENGTH+SAFETY_MARGIN*2 - WHEELBASE)/2;
+  float CAR_INSIDE = (WIDTH + SAFETY_MARGIN*2) / 2.0;
+  float CAR_OUTSIDE = -CAR_INSIDE;
+
+  Eigen::Vector2f INNER_FRONT_CORNER = Eigen::Vector2f(CAR_FRONT, CAR_INSIDE);
+  Eigen::Vector2f OUTER_FRONT_CORNER = Eigen::Vector2f(CAR_FRONT, CAR_INSIDE);
 
   const float MAX_VELOCITY = 1.0;
   const float MAX_ACCEL = 0.4;
@@ -125,6 +136,9 @@ class Navigation {
 
   // const float GOAL = 5.0;
   Eigen::Vector2f GOAL = Eigen::Vector2f(5, 0);
+
+  float CLEARANCE_WEIGHT = 3;
+  float GOAL_WEIGHT = -3;
 
   bool VISUALIZE = 1;
   

@@ -123,14 +123,26 @@ float Navigation::getTravellableDistance(struct PathOption& option)
     res = std::min(distance, res);
   }
 
-    return res;
+  option.free_path_length = res;
+  return res;
+}
+
+void Navigation::scorePath(struct PathOption& option) {
+  getTravellableDistance(option);
+  TrimDistanceToGoal(option);
+  GetClearance(option);
+
+  printf("Path: length=%f, clearance=%f, goal distance=%f\n", option.free_path_length, option.clearance, option.distance_to_goal);
+  
+  option.score = option.free_path_length + CLEARANCE_WEIGHT * option.clearance + GOAL_WEIGHT * option.distance_to_goal;
 }
 
 float* Navigation::getBestCurvature() {
   float curvature = -1.0;
   float delta_c = 0.1;
   float best_curvature = 0.0;
-  float max_dist = 0.0;
+  float dist = 0.0;
+  float best_score = 0;
 
   while (curvature <= 1.0)
   {
@@ -138,24 +150,19 @@ float* Navigation::getBestCurvature() {
     option.curvature = curvature;
 
     // printf("Curvature: %f\n", curvature);
-    option.free_path_length = getTravellableDistance(option);
-    if (option.free_path_length > max_dist)
-    {
-      max_dist = option.free_path_length;
-      best_curvature = curvature;
-    } else {
-      if (fEquals(option.free_path_length, max_dist)) {
-       if (abs(best_curvature) > abs(curvature)) {
-         // Favor curvatures close to straight
-         best_curvature = curvature;
-       }
-      }
+    scorePath(option);
+
+    if (option.score > best_score) {
+      best_curvature = option.curvature;
+      best_score = option.score;
+      dist = option.free_path_length;
     }
+
     curvature += delta_c;
   }
   // printf("Max distance: %f\n", max_dist);
 
-  return new float[2] {best_curvature, max_dist};
+  return new float[2] {best_curvature, dist};
 }
 
 float* Navigation::Simple1DTOC()
@@ -244,48 +251,70 @@ void Navigation::Run() {
   iteration++;
 }
 
+void Navigation::TrimDistanceToGoal (struct PathOption& option) {
+  // Take a maximum free path length and trim it to closest point of approach
+
+  // special case for straight
+  if (fEquals(option.theta,0)) {
+    float new_max_dist = GOAL(0);
+    option.free_path_length = std::min(new_max_dist, option.free_path_length);
+    option.distance_to_goal = GOAL(0) - option.free_path_length;
+  } else {
+    // Gets the angle between current pos and goal
+    float phi = GetAngleBetweenVectors(-option.CoT, GOAL - option.CoT);
+    float new_max_dist = phi * option.radius;
+
+    option.free_path_length = std::min(new_max_dist, option.free_path_length);
+    option.distance_to_goal = abs((GOAL - option.CoT).norm() - option.radius);
+  }
+}
+
 void Navigation::GetClearance (struct PathOption& option) {
-  float width = WIDTH + SAFETY_MARGIN;
-  float length = LENGTH + SAFETY_MARGIN;
+  float width = WIDTH + SAFETY_MARGIN * 2;
+  float length = LENGTH + SAFETY_MARGIN * 2;
   float wheelbase = WHEELBASE;
 
   float radius = option.radius;
   Vector2f CoT(0,radius);
 
+  // min and max radius of swept volume
   float max_radius = sqrt(pow(radius+width/2.0,2) + pow(length - (length - wheelbase)/2.0, 2));
   float min_radius = radius - width/2.0;
 
   float min_clearance = INF;
 
+  // The point closest to car defines the min clearance
   for (auto point : point_cloud_) {
     Eigen::Vector2f point_vector = point - CoT;
     float point_radius = point_vector.norm();
-
-    if (point_radius >= min_radius && point_radius <= max_radius) {
-      // collides - we don't care about this one
-      continue;
-    }
-
+    
     // See if point is at a reasonable angle
     Eigen::Vector2f car_vector (0, -radius);
     float point_angle = GetAngleBetweenVectors(car_vector, point_vector);
     float distance_angle = option.free_path_length / radius;
 
+    // If the point is outside of the distance traversed by car, we don't care
     if (point_angle < distance_angle) {
 
-      // point is close to arc that is travelled
-      min_clearance = std::min(min_clearance, std::min(abs(point_radius - min_radius), abs(point_radius - max_radius)));
-    } 
-    else {
-      // printf("Clearance set to outward\n");
-      // point is outside, look at endpoints instead
-      // Eigen::Vector2f distance_point = 2 * radius * sin(distance_angle/2);
-      // Eigen::Vector2f distance_vector = (distance_point - CoT).normalized();
+      if (point_radius >= min_radius && point_radius <= max_radius) {
+        // collides - we don't care about this one
+        // also shouldn't happen, but might if car is overshooting
+        min_clearance = 0;
+        continue;
+      }
 
-      // Eigen::Vector2f min_endpoint = distance_point - (distance_vector * (radius - min_radius));
-      // Eigen::Vector2f max_endpoint = distance_point + (distance_vector * (max_radius - radius));
 
-      // float min_clearance = std::min(min_clearance, std::min((min_endpoint - point).norm(), (max_endpoint - point).norm()));
+        // Figure out if point is on inside or outside of swept volume 
+        float inside_distance = abs(point_radius - min_radius);
+        float outside_distance = abs(point_radius - max_radius);
+
+        // point is close to arc that is travelled
+        min_clearance = std::min(min_clearance, std::min(inside_distance, outside_distance));
+    } else {
+      float angle_difference = point_angle - distance_angle;
+      float inside_distance = sqrt(pow(radius,2) + pow(min_radius,2) - 2 * radius * min_radius * cos(angle_difference));
+      float outside_distance = sqrt(pow(radius,2) + pow(max_radius,2) - 2 * radius * max_radius * cos(angle_difference));
+      min_clearance = std::min(min_clearance, std::min(inside_distance, outside_distance));
     }
   }
 
@@ -301,21 +330,26 @@ float Navigation::GetMaxDistanceStraight(Eigen::Vector2f point) {
 
   float car_front = wb + (l - wb)/2;
 
+  // Get the bounding box of swept volume of car
   Eigen::Vector2f bbox_min (0, -w / 2.0);
   Eigen::Vector2f bbox_max (INF, w/2);
 
+  // Check if point is within bbox
   if (point(0) >= bbox_min(0) && point(0) <= bbox_max(0) && point(1) >= bbox_min(1) && point(1) <= bbox_max(1)) { 
+    // distance between point and car front is the max free path
     float distance = point(0) - car_front;
-    // printf("max distance straight: %f\n", distance);
+
+    // Sometimes we end up with negative distance if car overshot and point is within safety margin
     return distance; 
   }
-  // printf("max distance straight: %f\n", INF);
 
+  // Point does not collide - return infinity (maybe this is bad)
   return INF;
 }
 float Navigation::GetMaxDistance(struct PathOption& option, Eigen::Vector2f point) { 
   float theta = option.theta;
 
+  // If angle is 0, use straight special case
   if (fEquals(theta, 0.0)) {
     return GetMaxDistanceStraight(point);
   }
@@ -333,6 +367,7 @@ float Navigation::GetMaxDistance(struct PathOption& option, Eigen::Vector2f poin
   float radius = wheelbase / tan(theta/2);
   Vector2f CoT(0,radius);
 
+  // hacky, saving values for later use
   if(option.theta < 0) {
     option.CoT = Eigen::Vector2f(0, -radius);
   } else {
@@ -340,18 +375,28 @@ float Navigation::GetMaxDistance(struct PathOption& option, Eigen::Vector2f poin
   }
   option.radius = radius;
 
+  // Get the min and max radius of the swept volume of car
   float max_radius = sqrt(pow(radius+width/2.0,2) + pow(length - (length - wheelbase)/2.0, 2));
   float min_radius = radius - width/2.0;
   
+  // get the radius between obstacle and CoT
   auto point_vec = point - CoT;
   float point_radius = abs(point_vec.norm());
 
+  // If point_radius is within swept volume, means it collides
   if (point_radius >= min_radius && point_radius <= max_radius) {
+    // Get alpha + beta
+    // alpha = angle between current base_link and base_link after driving max length
+    // beta = angle between base_line and point on car that collides
+    // alpha + beta can be easily found by getting angle between base_link and point
     auto down_vec = Eigen::Vector2f(0, -radius);
     float ab = GetAngleBetweenVectors(down_vec, point_vec);
 
+    // Use inner corner radius to determine whether collision is with front or side
     float inner_corner_radius = sqrt(pow(min_radius,2) + pow(length - (length - wheelbase)/2.0,2));
     float beta = 0;
+
+    // Use trig to get angles - don't bother calculating actual points (from class)
     if (point_radius >= min_radius && point_radius <= inner_corner_radius) {
       // collision with side
       float y = radius - width/2;
@@ -363,15 +408,22 @@ float Navigation::GetMaxDistance(struct PathOption& option, Eigen::Vector2f poin
       beta = asin(x / point_radius);
     }
 
+    // Alpha is angle that we travel
     float alpha = ab - beta;
+    option.angle_travelled = alpha;
     return radius * alpha;
   }
-
+  option.angle_travelled = M_PI * 2;
+  // If no collision, return a quarter of the circle
   return M_PI*2 * radius / 4;
 }
 
 float Navigation::GetAngleBetweenVectors (Eigen::Vector2f a, Eigen::Vector2f b) {
-  return acos(a.dot(b) / (a.norm() * b.norm()));
+  float angle = acos(a.dot(b) / (a.norm() * b.norm()));
+  if (angle < 0) {
+    angle = (M_PI * 2) + angle;
+  }
+  return angle;
 }
 
 
@@ -443,8 +495,8 @@ float Navigation::GetAngleBetweenVectors (Eigen::Vector2f a, Eigen::Vector2f b) 
 // }
 
 void Navigation::DrawCar() {
-  float l = LENGTH + SAFETY_MARGIN;
-  float w = WIDTH + SAFETY_MARGIN;
+  float l = LENGTH + SAFETY_MARGIN * 2;
+  float w = WIDTH + SAFETY_MARGIN * 2;
   float wb = WHEELBASE;
 
   Eigen::Vector2f bbox_min (0 - (l - wb)/2, -w / 2.0);
@@ -461,28 +513,24 @@ void Navigation::DrawArcs(float curvature, float dist) {
     return;
   }
   if (curvature > 0) {
+    // these might be slightly off but you get the gist
     float theta = atan(WHEELBASE * curvature);
-    // float theta = curvature;
     float radius = WHEELBASE / tan(theta/2);
     Vector2f CoT(0,radius);
-    // visualization::DrawArc(CoT, radius, -M_PI / 2, 0, 0xff0000, local_viz_msg_);
     visualization::DrawArc(CoT, radius, -M_PI / 2, -M_PI / 2 + (dist/radius), 0xff0000, local_viz_msg_);
 
 
   } else {
       float theta = atan(WHEELBASE * -curvature);
-      // float theta = -curvature;
       float radius = WHEELBASE / tan(theta/2);
       Vector2f CoT(0,-radius);
-      // visualization::DrawArc(CoT, radius, -(dist/radius), 0, 0xff0000, local_viz_msg_);
-      // visualization::DrawArc(CoT, radius, 0, (dist/radius), 0xff0000, local_viz_msg_);
       visualization::DrawArc(CoT, radius, (M_PI / 2) - (dist/radius), M_PI / 2, 0xff0000, local_viz_msg_);
   }
 }
 
 Eigen::Vector2f Navigation::GlobalToRobot(Eigen::Vector2f point) {
 
-  // printf("Robot location: %f %f\n", robot_loc_(0), robot_loc_(1));
+  // Translate global frame coords to robot coords
 
   float angle = -robot_angle_;
   Eigen::Matrix2f rot;
@@ -493,7 +541,7 @@ Eigen::Vector2f Navigation::GlobalToRobot(Eigen::Vector2f point) {
 
   auto translated_point = rot * (point - robot_loc_);
 
-  visualization::DrawCross(translated_point, 0.5, 0x0000ff,local_viz_msg_);
+  // visualization::DrawCross(translated_point, 0.5, 0x0000ff,local_viz_msg_);
 
   return translated_point;
 
