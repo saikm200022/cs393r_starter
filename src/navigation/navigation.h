@@ -97,6 +97,7 @@ class Navigation {
 
   void GetClearance (struct PathOption& option);
 
+  void TransformPointCloud(float dx, float dy, float theta);
 
 
   void DrawCar();
@@ -144,6 +145,9 @@ class Navigation {
   
   int iteration = 0;
   int scratch = 0;
+
+  float previous_velocity = 0;
+  float previous_curvature = 0;
 
   Eigen::Vector2f obstacle; 
 

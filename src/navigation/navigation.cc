@@ -110,6 +110,22 @@ void Navigation::ObservePointCloud(const vector<Vector2f>& cloud,
   point_cloud_ = cloud;                                     
 }
 
+void Navigation::TransformPointCloud(float dx, float dy, float theta) {
+  //Get change
+
+  for (auto point : point_cloud_) {
+    point[0] = point[0] + dx;
+    point[1] = point[1] + dy;
+
+    float x = point[0];
+    float y = point[1];
+
+    point[0] = x * cos(theta) - y * sin(theta);
+    point[1] = y * cos(theta) + x * sin(theta);
+  }
+
+}
+
 float Navigation::getTravellableDistance(struct PathOption& option)
 {
   float curvature = option.curvature;
@@ -171,7 +187,7 @@ float* Navigation::Simple1DTOC()
   float curvature = action[0];
   float dist = action[1];
 
-  // printf("DISTANCE: %f\n", dist);
+  
 
   if (VISUALIZE) {
     DrawCar();
@@ -226,9 +242,15 @@ void Navigation::Run() {
   // Eventually, you will have to set the control values to issue drive commands:
   // if (iteration % 100 == 0) {
     visualization::ClearVisualizationMsg(local_viz_msg_);
+    // TODO
+    // Predict where robot will be
+    // Shift point cloud
+    TransformPointCloud(0, 0, 0);
     float* res = Simple1DTOC();
     drive_msg_.curvature = res[0];
     drive_msg_.velocity = res[1];
+    previous_curvature = res[0];
+    previous_velocity = res[1];
   // } else {
   //       drive_msg_.curvature = 0;
   //   drive_msg_.velocity = 0;
