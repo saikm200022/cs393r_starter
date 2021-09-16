@@ -269,6 +269,37 @@ void Navigation::TrimDistanceToGoal (struct PathOption& option) {
   }
 }
 
+float Navigation::GetRotation(float velocity, float curvature) {
+  float theta = atan(WHEELBASE * curvature);
+  float radius = WHEELBASE / tan(theta/2);
+  Vector2f CoT(0,radius);
+
+  float distance_travelled = velocity * LATENCY;
+  float distance_angle = distance_travelled / radius;
+
+  return (M_PI / 2) - distance_angle;
+}
+
+Eigen::Vector2f Navigation::GetTranslation(float velocity, float curvature) {
+  float theta = atan(WHEELBASE * curvature);
+  float radius = WHEELBASE / tan(theta/2);
+  Vector2f CoT(0,radius);
+
+  float distance_travelled = velocity * LATENCY;
+  float distance_angle = distance_travelled / radius;
+  // Eigen::Vector2f A = CoT;
+  Eigen::Vector2f B(0,0);
+
+  float ac = radius;
+  float ab = radius;
+  float bc = 2 * radius * sin(distance_angle/2.0);
+
+  float c_y = (pow(ab,2) + pow(ac,2) - pow(bc,2)) / (2 * ab);
+  float c_x = sqrt(pow(ac,2) - pow(c_y,2));
+
+  return Eigen::Vector2f(c_x, c_y);
+}
+
 void Navigation::GetClearance (struct PathOption& option) {
   float width = WIDTH + SAFETY_MARGIN * 2;
   float length = LENGTH + SAFETY_MARGIN * 2;
