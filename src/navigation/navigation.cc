@@ -245,7 +245,14 @@ void Navigation::Run() {
     // TODO
     // Predict where robot will be
     // Shift point cloud
-    TransformPointCloud(0, 0, 0);
+    float dx;
+    float dy;
+    float theta;
+    Eigen::Vector2f delta = GetTranslation(previous_velocity, previous_curvature);
+    dx = delta[0];
+    dy = delta[1];
+    theta = GetRotation(previous_velocity, previous_curvature);
+    TransformPointCloud(dx, dy, theta);
     float* res = Simple1DTOC();
     drive_msg_.curvature = res[0];
     drive_msg_.velocity = res[1];
