@@ -256,15 +256,15 @@ void Navigation::TrimDistanceToGoal (struct PathOption& option) {
 
   // special case for straight
   if (fEquals(option.theta,0)) {
-    float new_max_dist = GOAL(0);
-    option.free_path_length = std::min(new_max_dist, option.free_path_length);
+    // float new_max_dist = GOAL(0);
+    // option.free_path_length = std::min(new_max_dist, option.free_path_length);
     option.distance_to_goal = GOAL(0) - option.free_path_length;
   } else {
     // Gets the angle between current pos and goal
-    float phi = GetAngleBetweenVectors(-option.CoT, GOAL - option.CoT);
-    float new_max_dist = phi * option.radius;
+    // float phi = GetAngleBetweenVectors(-option.CoT, GOAL - option.CoT);
+    // float new_max_dist = phi * option.radius;
 
-    option.free_path_length = std::min(new_max_dist, option.free_path_length);
+    // option.free_path_length = std::min(new_max_dist, option.free_path_length);
     option.distance_to_goal = abs((GOAL - option.CoT).norm() - option.radius);
   }
 }

@@ -137,8 +137,8 @@ class Navigation {
   // const float GOAL = 5.0;
   Eigen::Vector2f GOAL = Eigen::Vector2f(5, 0);
 
-  float CLEARANCE_WEIGHT = 3;
-  float GOAL_WEIGHT = -3;
+  float CLEARANCE_WEIGHT = 0;
+  float GOAL_WEIGHT = 0;
 
   bool VISUALIZE = 1;
   
