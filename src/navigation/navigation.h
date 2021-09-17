@@ -138,8 +138,8 @@ class Navigation {
   // const float GOAL = 5.0;
   Eigen::Vector2f GOAL = Eigen::Vector2f(25, 0);
 
-  Eigen::Vector2f GetTranslation(float velocity, float curvature);
-  float GetRotation(float velocity, float curvature);
+  Eigen::Vector2f GetTranslation(float velocity, float curvature, float time);
+  float GetRotation(float velocity, float curvature, float time);
 
   float LATENCY = 0.1;
 

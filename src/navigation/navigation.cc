@@ -248,16 +248,24 @@ void Navigation::Run() {
     float dx;
     float dy;
     float theta;
-    Eigen::Vector2f delta = GetTranslation(previous_velocity, previous_curvature);
-    dx = delta[0];
-    dy = delta[1];
-    theta = GetRotation(previous_velocity, previous_curvature);
-    TransformPointCloud(dx, dy, theta);
-    float* res = Simple1DTOC();
-    drive_msg_.curvature = res[0];
-    drive_msg_.velocity = res[1];
-    previous_curvature = res[0];
-    previous_velocity = res[1];
+
+    float time = 0;
+
+    while (time < LATENCY) {
+      Eigen::Vector2f delta = GetTranslation(previous_velocity, previous_curvature, time);
+      dx = delta[0];
+      dy = delta[1];
+      theta = GetRotation(previous_velocity, previous_curvature, time);
+      TransformPointCloud(dx, dy, theta);
+      float* res = Simple1DTOC();
+      previous_curvature = res[0];
+      previous_velocity = res[1];
+      time += ((float) 1/20);
+      printf("%f", time);
+    }
+
+    drive_msg_.curvature = previous_curvature;
+    drive_msg_.velocity = previous_velocity;
   // } else {
   //       drive_msg_.curvature = 0;
   //   drive_msg_.velocity = 0;
@@ -298,23 +306,23 @@ void Navigation::TrimDistanceToGoal (struct PathOption& option) {
   }
 }
 
-float Navigation::GetRotation(float velocity, float curvature) {
+float Navigation::GetRotation(float velocity, float curvature, float time) {
   float theta = atan(WHEELBASE * curvature);
   float radius = WHEELBASE / tan(theta/2);
   Vector2f CoT(0,radius);
 
-  float distance_travelled = velocity * LATENCY;
+  float distance_travelled = velocity * time;
   float distance_angle = distance_travelled / radius;
 
   return (M_PI / 2) - distance_angle;
 }
 
-Eigen::Vector2f Navigation::GetTranslation(float velocity, float curvature) {
+Eigen::Vector2f Navigation::GetTranslation(float velocity, float curvature, float time) {
   float theta = atan(WHEELBASE * curvature);
   float radius = WHEELBASE / tan(theta/2);
   Vector2f CoT(0,radius);
 
-  float distance_travelled = velocity * LATENCY;
+  float distance_travelled = velocity * time;
   float distance_angle = distance_travelled / radius;
   // Eigen::Vector2f A = CoT;
   Eigen::Vector2f B(0,0);
