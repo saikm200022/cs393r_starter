@@ -108,18 +108,18 @@ class Navigation {
 
 
   // REAL CAR CONSTANTS
-  // const float LENGTH = 0.5;
-  // const float WIDTH = 0.25;
-  // const float WHEELBASE = 0.35;
-  // const float TRACK = 0.25;
-  // const float SAFETY_MARGIN = 0.25;
+  const float LENGTH = 0.5;
+  const float WIDTH = 0.25;
+  const float WHEELBASE = 0.35;
+  const float TRACK = 0.25;
+  const float SAFETY_MARGIN = 0.1;
 
   // SIMULATOR CONSTANTS
-  const float LENGTH = 0.535;
-  const float WIDTH = 0.281;
-  const float WHEELBASE = 0.535;
-  const float TRACK = 0.281;
-  const float SAFETY_MARGIN = 0.05;
+  // const float LENGTH = 0.535;
+  // const float WIDTH = 0.281;
+  // const float WHEELBASE = 0.535;
+  // const float TRACK = 0.281;
+  // const float SAFETY_MARGIN = 0.1;
 
   float CAR_FRONT = WHEELBASE + (LENGTH+SAFETY_MARGIN*2 - WHEELBASE)/2;
   float CAR_INSIDE = (WIDTH + SAFETY_MARGIN*2) / 2.0;
