@@ -84,11 +84,6 @@ class Navigation {
   float GetMaxDistance(struct PathOption& option, Eigen::Vector2f point);
   float GetMaxDistance2(struct PathOption& option, Eigen::Vector2f point);
 
-
-  // bool PointCollidesWithArc(float theta, Eigen::Vector2f point);
-
-  // bool PointCollidesStraight(Eigen::Vector2f point);
-
   float GetMaxDistanceStraight(Eigen::Vector2f point);
   float Simple1DTOC(Eigen::Vector2f point);
   float getDistanceToGoal(struct PathOption& option);
@@ -134,8 +129,6 @@ class Navigation {
 
   const float INF = std::numeric_limits<float>::max();
 
-
-  // const float GOAL = 5.0;
   Eigen::Vector2f GOAL = Eigen::Vector2f(25, 0);
 
   Eigen::Vector2f GetTranslation(float velocity, float curvature, float time);
@@ -143,8 +136,8 @@ class Navigation {
 
   float LATENCY = 0.1;
 
-  float CLEARANCE_WEIGHT = 0;
-  float GOAL_WEIGHT = 0;
+  float CLEARANCE_WEIGHT = 0.1;
+  float GOAL_WEIGHT = 0.1;
 
   bool VISUALIZE = 1;
   

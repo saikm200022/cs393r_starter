@@ -111,8 +111,7 @@ void Navigation::ObservePointCloud(const vector<Vector2f>& cloud,
 }
 
 void Navigation::TransformPointCloud(float dx, float dy, float theta) {
-  //Get change
-
+  // Transform point cloud using translation and rotation angle
   for (auto point : point_cloud_) {
     point[0] = point[0] + dx;
     point[1] = point[1] + dy;
@@ -126,11 +125,12 @@ void Navigation::TransformPointCloud(float dx, float dy, float theta) {
 
 }
 
+// Finds max distance robot can travel for the curvature specificed in option.curvature
 float Navigation::getTravellableDistance(struct PathOption& option)
 {
   float curvature = option.curvature;
   float res = INF;
-  // printf("Curve: %f\n", curvature);
+
   // Calculate the steering angle from curvature
   option.theta = atan(WHEELBASE * curvature);
   for (auto point : point_cloud_)
@@ -143,16 +143,17 @@ float Navigation::getTravellableDistance(struct PathOption& option)
   return res;
 }
 
+// Calculates score for given curvature based on free path length, clerance, and distance to goal
 void Navigation::scorePath(struct PathOption& option) {
+  // Calls to functions population option object
   getTravellableDistance(option);
   TrimDistanceToGoal(option);
   GetClearance(option);
-
-  // printf("Path: length=%f, clearance=%f, goal distance=%f\n", option.free_path_length, option.clearance, option.distance_to_goal);
   
   option.score = option.free_path_length + CLEARANCE_WEIGHT * option.clearance + GOAL_WEIGHT * option.distance_to_goal;
 }
 
+// Function returns optimal curvature for robot to take in the range [-1.0, 1.0]
 float* Navigation::getBestCurvature() {
   float curvature = -1.0;
   float delta_c = 0.1;
@@ -165,9 +166,8 @@ float* Navigation::getBestCurvature() {
     struct PathOption option;
     option.curvature = curvature;
 
-    // printf("Curvature: %f\n", curvature);
+    // Calculate score for given curvature and keep track of best scoring curvature
     scorePath(option);
-
     if (option.score > best_score) {
       best_curvature = option.curvature;
       best_score = option.score;
@@ -176,44 +176,36 @@ float* Navigation::getBestCurvature() {
 
     curvature += delta_c;
   }
-  // printf("Max distance: %f\n", max_dist);
 
   return new float[2] {best_curvature, dist};
 }
 
 float* Navigation::Simple1DTOC()
 {
+  // Use curvature and distance values to implement 1D Time optimal control loop at this time step
   float* action = getBestCurvature();
   float curvature = action[0];
   float dist = action[1];
-
-  
 
   if (VISUALIZE) {
     DrawCar();
     DrawArcs(curvature, dist);
   }
 
+  // Distance needed to deccelerate
   float x3 = pow(robot_vel_[0],2) / MAX_DECEL;
-
-  // printf("Curvature %f\tDist %f\tx3 %f\t\n", curvature, dist, x3);
-
   // accelerate towards vmax
   if (robot_vel_[0] < MAX_VELOCITY && dist >= x3)
   {
-    // printf("a\n");
     float new_v = robot_vel_[0] + MAX_ACCEL * 1/20;
     return new float[2] {curvature, std::max(float(0.2), new_v)};  
   }
   
-  // Cruise
+  // Cruise at max velocity
   if (robot_vel_[0] == MAX_VELOCITY && dist >= x3) 
   {
-    // printf("\tc\n");
     return new float[2] {curvature, MAX_VELOCITY};
   }
-
-  // printf("\t\td\n");
   
   // Stop
   float new_v = robot_vel_[0] - MAX_DECEL * 1/10;
@@ -223,7 +215,6 @@ float* Navigation::Simple1DTOC()
 
 void Navigation::Run() {
   // This function gets called 20 times a second to form the control loop.
-  
   // Clear previous visualizations.
   if (iteration == 0) {
     obstacle = Eigen::Vector2f(-19.3, 8.0);
@@ -250,7 +241,7 @@ void Navigation::Run() {
     float theta;
 
     float time = 0;
-
+    // Latency Compensation loop where point cloud is transformed and speed and curvature is predicted
     while (time < LATENCY) {
       Eigen::Vector2f delta = GetTranslation(previous_velocity, previous_curvature, time);
       dx = delta[0];
@@ -261,18 +252,11 @@ void Navigation::Run() {
       previous_curvature = res[0];
       previous_velocity = res[1];
       time += ((float) 1/20);
-      // printf("%f", time);
     }
 
     drive_msg_.curvature = previous_curvature;
     drive_msg_.velocity = previous_velocity;
-  // } else {
-  //       drive_msg_.curvature = 0;
-  //   drive_msg_.velocity = 0;
-  // }
-  
-  // int size = point_cloud_.size();
-  // printf("Cloud size: %d\n", size);
+
   for (auto point : point_cloud_) {
     visualization::DrawPoint(point,0x4287f5,local_viz_msg_);
   }
@@ -306,6 +290,7 @@ void Navigation::TrimDistanceToGoal (struct PathOption& option) {
   }
 }
 
+// Returns Rotation angle for transforming point cloud
 float Navigation::GetRotation(float velocity, float curvature, float time) {
   float theta = atan(WHEELBASE * curvature);
   float radius = WHEELBASE / tan(theta/2);
@@ -317,6 +302,7 @@ float Navigation::GetRotation(float velocity, float curvature, float time) {
   return (M_PI / 2) - distance_angle;
 }
 
+// Returns Translation displacement for transforming point cloud
 Eigen::Vector2f Navigation::GetTranslation(float velocity, float curvature, float time) {
   float theta = atan(WHEELBASE * curvature);
   float radius = WHEELBASE / tan(theta/2);
@@ -324,7 +310,6 @@ Eigen::Vector2f Navigation::GetTranslation(float velocity, float curvature, floa
 
   float distance_travelled = velocity * time;
   float distance_angle = distance_travelled / radius;
-  // Eigen::Vector2f A = CoT;
   Eigen::Vector2f B(0,0);
 
   float ac = radius;
@@ -390,8 +375,6 @@ void Navigation::GetClearance (struct PathOption& option) {
 }
 
 float Navigation::GetMaxDistanceStraight(Eigen::Vector2f point) {
-  // printf("in straight");
-
   float l = LENGTH + SAFETY_MARGIN * 2;
   float w = WIDTH + SAFETY_MARGIN * 2;
   float wb = WHEELBASE;
@@ -549,8 +532,6 @@ Eigen::Vector2f Navigation::GlobalToRobot(Eigen::Vector2f point) {
   rot(1,1) = cos(angle);
 
   auto translated_point = rot * (point - robot_loc_);
-
-  // visualization::DrawCross(translated_point, 0.5, 0x0000ff,local_viz_msg_);
 
   return translated_point;
 
